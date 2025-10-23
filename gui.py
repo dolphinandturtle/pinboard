@@ -1,3 +1,39 @@
+import pygame as pg
+from dataclasses import dataclass
+from bisect import bisect_left
+from math import cos, sin, hypot
+from math import pi
+
+
+@dataclass(slots=True, frozen=True)
+class Theme:
+    background: str
+    button_hover: str
+    arrow_uni: str
+    arrow_bi: str
+    card_isolated: str
+    card_axiom: str
+    card_theorem: str
+    card_thesis: str
+    card_focused: str
+    text_card: str
+    text_widget: str
+
+DEFAULT_THEME = Theme(
+    background="#333344",
+    button_hover="#ffffff",
+    arrow_uni="#dddddd",
+    arrow_bi="#ffffff",
+    card_isolated="#ffffff",
+    card_axiom="#ffffff",
+    card_theorem="#ffffff",
+    card_thesis="#ffffff",
+    card_focused="#ffffaa",
+    text_card="#000000",
+    text_widget="#777799"
+)
+
+
 class Camera:
     def __init__(self, x=0, y=0, z=1):
         self.x = x
@@ -5,31 +41,35 @@ class Camera:
         self.z = z
 
     def move(self, dx, dy):
-        self.x += dx
-        self.y += dy
+        self.x += dx * self.z
+        self.y += dy * self.z
+
+    def zoom(self, x_rel, y_rel, fac):
+        self.x -= x_rel * fac
+        self.y -= y_rel * fac
+        self.z += fac
 
     def x_rel(self, x_abs):
-        return x_abs - self.x
+        return round((x_abs - self.x) / self.z)
 
     def x_abs(self, x_rel):
-        return self.x + x_rel
+        return round(self.x + (x_rel * self.z))
 
     def y_rel(self, y_abs):
-        return y_abs - self.y
+        return round((y_abs - self.y) / self.z)
 
     def y_abs(self, y_rel):
-        return self.y + y_rel
+        return round(self.y + (y_rel * self.z))
 
 
 class ButtonsRect:
-    def __init__(self, id_max=0, idmap=None, id=None, xi=None, yi=None, xf=None, yf=None):
-        self.id_max = id_max
-        self.idmap = {} if idmap is None else idmap
-        self.id = [] if id is None else id
+    def __init__(self, xi=None, yi=None, xf=None, yf=None, id=None, idmap=None):
         self.xi = [] if xi is None else xi
         self.yi = [] if yi is None else yi
         self.xf = [] if xf is None else xf
         self.yf = [] if yf is None else yf
+        self.id = [] if id is None else id
+        self.idmap = {} if idmap is None else idmap
 
     def probe(self, x, y) -> int:
         ids_intersect_x = [id for id, xi, xf in zip(self.id, self.xi, self.xf) if xi < x < xf]
@@ -63,22 +103,19 @@ class ButtonsLine:
         return out
 
 
-class Texts:
-    def __init__(self, id_max=0, idmap=None, id=None, xi=None, yi=None, xf=None, yf=None, buffer=None):
-        self.id_max = id_max
-        self.idmap = {} if idmap is None else idmap
-        self.id = [] if id is None else id
-        self.xi = [] if xi is None else xi
-        self.yi = [] if yi is None else yi
-        self.xf = [] if xf is None else xf
-        self.yf = [] if yf is None else yf
-        self.buffer = [] if buffer is None else buffer
+class BoxesOfText:
+    def __init__(self, data_program):
+        self.data_program = data_program
+        self.font = pg.font.SysFont("Arial", 16)
 
-    def draw(self, screen, font):
-        pass
-
-    def update(self):
-        pass
+    def render(self, text, width, height, metrics) -> pg.Surface:
+        surface = pg.Surface((width, height), pg.SRCALPHA)
+        text = self.wrap_text(text, width, height, metrics)
+        for dy, line in enumerate(text.split('\n')):
+            surface.blit(self.font.render(line, True, self.data_program.theme.text_card), (
+                0, self.font.get_height() * dy
+            ))
+        return surface
 
     @staticmethod
     def wrap_text(text, width_max, height_max, width_list) -> str:
@@ -97,19 +134,16 @@ class Texts:
             output.append(text[start:end])
         return '\n'.join(output)
 
-class Sprites:
-    def __init__(self, id_max=0, idmap=None, id=None, xi=None, yi=None, xf=None, yf=None, surf=None):
-        self.id_max = id_max
-        self.idmap = {} if idmap is None else idmap
-        self.id = [] if id is None else id
-        self.xi = [] if xi is None else xi
-        self.yi = [] if yi is None else yi
-        self.xf = [] if xf is None else xf
-        self.yf = [] if yf is None else yf
-        self.surf = [] if surf is None else surf
 
-    def draw(self):
-        pass
-
-    def update(self):
-        pass
+def draw_arrow(screen, color, pos_i, pos_f, width):
+    c = cos(0.8*pi)
+    s = sin(0.8*pi)
+    xi, yi = pos_i
+    xf, yf = pos_f
+    xc, yc = (xf + xi) / 2, (yf + yi) / 2
+    xp, yp = xf*.55 + xi*.45, yf*.55 + yi*.45
+    dx, dy = xp - xc, yp - yc
+    xl, yl = (+dx*c - dy*s) + xc, (+dx*s + dy*c) + yc
+    xr, yr = (+dx*c + dy*s) + xc, (-dx*s + dy*c) + yc
+    pg.draw.line(screen, color, pos_i, pos_f, width=width)
+    pg.draw.polygon(screen, color, ((xp, yp), (xl, yl), (xr, yr)))

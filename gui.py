@@ -1,6 +1,5 @@
 import pygame as pg
 from dataclasses import dataclass
-from bisect import bisect_left
 from math import cos, sin, hypot
 from math import pi
 
@@ -103,38 +102,14 @@ class ButtonsLine:
         return out
 
 
-class BoxesOfText:
-    def __init__(self, data_program):
-        self.data_program = data_program
-        self.font = pg.font.SysFont("Arial", 16)
-
-    def render(self, text, width, height, metrics) -> pg.Surface:
-        surface = pg.Surface((width, height), pg.SRCALPHA)
-        text = self.wrap_text(text, width, height, metrics)
-        for dy, line in enumerate(text.split('\n')):
-            surface.blit(self.font.render(line, True, self.data_program.theme.text_card), (
-                0, self.font.get_height() * dy
-            ))
-        return surface
-
-    @staticmethod
-    def wrap_text(text, width_max, height_max, width_list) -> str:
-        assert isinstance(text, str)
-        assert isinstance(width_max, int)
-        assert isinstance(height_max, int)
-        assert isinstance(width_list, (list, tuple))
-        assert all(isinstance(n, int) for n in width_list)
-        output = []
-        start = 0
-        end = bisect_left(width_list, width_max)
-        output.append(text[start:end])
-        while end < len(text):
-            start = end
-            end = bisect_left(width_list, width_max, key=lambda t: t - width_list[end - 1])
-            output.append(text[start:end])
-        return '\n'.join(output)
-
-
+def draw_text(text, font, color, width, height):
+    surface = pg.Surface((width, height), pg.SRCALPHA)
+    for dy, line in enumerate(text.split('\n')):
+        surface.blit(font.render(line, True, color), (
+            0, font.get_height() * dy
+        ))
+    return surface
+    
 def draw_arrow(screen, color, pos_i, pos_f, width):
     c = cos(0.8*pi)
     s = sin(0.8*pi)

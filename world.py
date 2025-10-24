@@ -6,20 +6,17 @@ from text import HandlerText
 
 
 class AuxiliaryWorld:
-    def __init__(self, data_program, wrld):
-        self.font = pg.font.SysFont(data_program.font, 16)
+    def __init__(self, wrld):
+        count = len(wrld.cards_id)
         self.cards_idmap = {id: i for i, id in enumerate(wrld.cards_buffer)}
-        self.buffer_metrics = [
-            [self.font.size(buffer[:i])[0] for i in range(len(buffer))]
-            for buffer in wrld.cards_buffer
-        ]
-        self.caches_render = []
+        self.buffer_metrics = [list() for _ in range(count)]
+        self.caches_render = [pg.Surface((200, 100), pg.SRCALPHA) for _ in range(count)]
 
 
 @dataclass(slots=True, frozen=True)
 class PersistentWorld:
     # Position
-    camera:             gui.Camera = field(default_factory=gui.Camera)
+    camera:             gui.Camera = field(default_factory=gui.Camera)   # TODO: Remove camera from PersistentWorld
     cards_xi:           list[int]  = field(default_factory=list)
     cards_xf:           list[int]  = field(default_factory=list)
     cards_yi:           list[int]  = field(default_factory=list)
@@ -99,7 +96,7 @@ class PersistentWorld:
 class HandlerWorld:
     def __init__(self, data_program, wrld=None):
         self.wrld = PersistentWorld() if wrld is None else wrld
-        self.aux = AuxiliaryWorld(data_program, self.wrld)
+        self.aux = AuxiliaryWorld(self.wrld)
         # Auxiliary
         self.xi = 0
         self.yi = 0
@@ -109,11 +106,7 @@ class HandlerWorld:
             self.wrld.cards_xf, self.wrld.cards_yf,
             self.wrld.cards_id, self.aux.cards_idmap
         )
-        self.hnd_txt = HandlerText(
-            data_program,
-            self.wrld.camera, self.wrld.cards_xi, self.wrld.cards_xf, self.wrld.cards_yi, self.wrld.cards_yf,
-            self.wrld.cards_buffer, self.aux.buffer_metrics, self.aux.caches_render, self.aux.font
-        )
+        self.hnd_txt = HandlerText(self.data_program, self.wrld, self.aux)
         self.stage = 0
         self.id_base = 0
 

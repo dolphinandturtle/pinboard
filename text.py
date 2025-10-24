@@ -6,16 +6,18 @@ from bisect import bisect_left
 
 
 class HandlerText:
-    def  __init__(self, data_program, camera=None, cards_xi=None, cards_xf=None, cards_yi=None, cards_yf=None, cards_buffer=None, buffer_metrics=None, caches_render=None, font=None):
-        self.cam = Camera() if camera is None else camera
-        self.cards_xi = [] if cards_xi is None else cards_xi
-        self.cards_xf = [] if cards_xf is None else cards_xf
-        self.cards_yi = [] if cards_yi is None else cards_yi
-        self.cards_yf = [] if cards_yf is None else cards_yf
-        self.cards_buffer = [] if cards_buffer is None else cards_buffer
-        self.buffer_metrics = [] if buffer_metrics is None else buffer_metrics
-        self.caches_render = [] if caches_render is None else caches_render
-        self.font = pg.font.SysFont(data_program.font, 16) if font is None else font
+    def __init__(self, data_program, core, aux):
+        self.font = pg.font.SysFont(data_program.font, 16)
+        self.core = core
+        self.aux = aux
+        aux.buffer_metrics[:] = [
+            [self.font.size(buffer[:i])[0] for i in range(len(buffer))]
+            for buffer in core.cards_buffer
+        ]
+        for buffer, metrics, surface in zip(core.cards_buffer, aux.buffer_metrics, aux.caches_render):
+            text = self.wrap_text(buffer, 200, 100, metrics)
+            surface.fill(data_program.theme.card_isolated)
+            gui.draw_text(surface, text, self.font, data_program.theme.text_card)
         self.data_program = data_program
         self.mount = 0
 
@@ -24,23 +26,23 @@ class HandlerText:
 
     def listen(self, event):
         if event.type == pg.KEYDOWN:
-            if event.key == pg.K_BACKSPACE and self.cards_buffer[self.mount]:
-                self.cards_buffer[self.mount] = self.cards_buffer[self.mount][:-1]
-                del self.buffer_metrics[self.mount][-1]
+            if event.key == pg.K_BACKSPACE and self.core.cards_buffer[self.mount]:
+                self.core.cards_buffer[self.mount] = self.core.cards_buffer[self.mount][:-1]
+                del self.aux.buffer_metrics[self.mount][-1]
             elif event.unicode:
-                self.cards_buffer[self.mount] += event.unicode
-                self.buffer_metrics[self.mount].append(self.font.size(self.cards_buffer[self.mount])[0])
-            text = self.wrap_text(self.cards_buffer[self.mount], 200, 100, self.buffer_metrics[self.mount])
-            surface = self.caches_render[self.mount]
+                self.core.cards_buffer[self.mount] += event.unicode
+                self.aux.buffer_metrics[self.mount].append(self.font.size(self.core.cards_buffer[self.mount])[0])
+            text = self.wrap_text(self.core.cards_buffer[self.mount], 200, 100, self.aux.buffer_metrics[self.mount])
+            surface = self.aux.caches_render[self.mount]
             surface.fill(self.data_program.theme.card_isolated)
             gui.draw_text(surface, text, self.font, self.data_program.theme.text_card)
 
     def draw(self, screen):
-        for xi, xf, yi, yf, surf in zip(self.cards_xi, self.cards_xf, self.cards_yi, self.cards_yf, self.caches_render):
-            width = self.cam.x_rel(xf) - self.cam.x_rel(xi)
-            height = self.cam.x_rel(yf) - self.cam.x_rel(yi)
-            x = self.cam.x_rel(xi)
-            y = self.cam.y_rel(yi)
+        for xi, xf, yi, yf, surf in zip(self.core.cards_xi, self.core.cards_xf, self.core.cards_yi, self.core.cards_yf, self.aux.caches_render):
+            width = self.core.camera.x_rel(xf) - self.core.camera.x_rel(xi)
+            height = self.core.camera.x_rel(yf) - self.core.camera.x_rel(yi)
+            x = self.core.camera.x_rel(xi)
+            y = self.core.camera.y_rel(yi)
             screen.blit(pg.transform.scale(surf, (width, height)), (x, y))
 
     @staticmethod

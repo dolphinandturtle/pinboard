@@ -6,11 +6,14 @@ from text import HandlerText
 
 
 class AuxiliaryWorld:
-    def __init__(self, program_data, wrld):
+    def __init__(self, data_program, wrld):
+        self.font = pg.font.SysFont(data_program.font, 16)
         self.cards_idmap = {id: i for i, id in enumerate(wrld.cards_buffer)}
-        self.buffer_metrics = []
-        self.caches_render_card = []
-        self.caches_render_text = []
+        self.buffer_metrics = [
+            [self.font.size(buffer[:i])[0] for i in range(len(buffer))]
+            for buffer in wrld.cards_buffer
+        ]
+        self.caches_render = []
 
 
 @dataclass(slots=True, frozen=True)
@@ -52,10 +55,7 @@ class PersistentWorld:
         self.cards_buffer.append(str())
         aux.buffer_metrics.append(list())
         # Render
-        surf = pg.Surface((200, 100), pg.SRCALPHA)
-        surf.fill("#ffffff")
-        aux.caches_render_card.append(surf)
-        aux.caches_render_text.append(pg.Surface((200, 100), pg.SRCALPHA))
+        aux.caches_render.append(pg.Surface((200, 100), pg.SRCALPHA))
         return id
 
     def kill(self, id, aux):
@@ -82,8 +82,7 @@ class PersistentWorld:
         del self.cards_id_exit[idel]
         del self.cards_id_enter[idel]
         # Remove render caches
-        del aux.caches_render_card[idel]
-        del aux.caches_render_text[idel]
+        del aux.caches_render[idel]
         # Update idmap
         '''Every index gt. than that of the deleted id's
         is going to move back by 1.'''
@@ -104,9 +103,7 @@ class HandlerWorld:
         # Auxiliary
         self.xi = 0
         self.yi = 0
-        #self.cam = gui.Camera()
         self.data_program = data_program
-        #self.cards_idmap = {id: i for i, id in enumerate(self.cards_id)}
         self.buttons_rect = gui.ButtonsRect(
             self.wrld.cards_xi, self.wrld.cards_yi,
             self.wrld.cards_xf, self.wrld.cards_yf,
@@ -115,7 +112,7 @@ class HandlerWorld:
         self.hnd_txt = HandlerText(
             data_program,
             self.wrld.camera, self.wrld.cards_xi, self.wrld.cards_xf, self.wrld.cards_yi, self.wrld.cards_yf,
-            self.wrld.cards_buffer, self.aux.buffer_metrics, self.aux.caches_render_text
+            self.wrld.cards_buffer, self.aux.buffer_metrics, self.aux.caches_render, self.aux.font
         )
         self.stage = 0
         self.id_base = 0
@@ -179,13 +176,18 @@ class HandlerWorld:
                     self.stage = 2
                 elif event.type == pg.MOUSEBUTTONUP and event.button == 1 and self.stage == 2:
                     xf, yf = event.pos
-                    self.wrld.spawn(
+                    if (xf - self.xi) < 0:
+                        self.xi, xf = xf, self.xi
+                    if (yf - self.yi) < 0:
+                        self.yi, yf = yf, self.yi
+                    id_spawn = self.wrld.spawn(
                         self.wrld.camera.x_abs(self.xi),
                         self.wrld.camera.x_abs(xf),
                         self.wrld.camera.y_abs(self.yi),
                         self.wrld.camera.y_abs(yf),
                         self.aux
                     )
+                    self.aux.caches_render[self.aux.cards_idmap[id_spawn]].fill(self.data_program.theme.card_isolated)
                     self.stage = 0
 
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and self.stage == 0:
@@ -224,16 +226,7 @@ class HandlerWorld:
 
     def draw(self, screen):
         self.draw_arrows(screen)
-        self.draw_cards(screen)
         self.hnd_txt.draw(screen)
-
-    def draw_cards(self, screen):
-        for xi, xf, yi, yf, surf in zip(self.wrld.cards_xi, self.wrld.cards_xf, self.wrld.cards_yi, self.wrld.cards_yf, self.aux.caches_render_card):
-            width = self.wrld.camera.x_rel(xf) - self.wrld.camera.x_rel(xi)
-            height = self.wrld.camera.x_rel(yf) - self.wrld.camera.x_rel(yi)
-            x = self.wrld.camera.x_rel(xi)
-            y = self.wrld.camera.y_rel(yi)
-            screen.blit(pg.transform.scale(surf, (width, height)), (x, y))
 
     def draw_arrows(self, screen):
         for xi, xf, yi, yf, id, ids_exit in zip(self.wrld.cards_xi, self.wrld.cards_xf, self.wrld.cards_yi, self.wrld.cards_yf, self.wrld.cards_id, self.wrld.cards_id_exit):

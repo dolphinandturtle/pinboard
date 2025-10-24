@@ -102,13 +102,11 @@ class ButtonsLine:
         return out
 
 
-def draw_text(text, font, color, width, height):
-    surface = pg.Surface((width, height), pg.SRCALPHA)
+def draw_text(surface, text, font, color):
     for dy, line in enumerate(text.split('\n')):
         surface.blit(font.render(line, True, color), (
             0, font.get_height() * dy
         ))
-    return surface
     
 def draw_arrow(screen, color, pos_i, pos_f, width):
     c = cos(0.8*pi)

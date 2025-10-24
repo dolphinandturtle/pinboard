@@ -12,6 +12,7 @@ import pickle
 class DataProgram:
     width: int
     height: int
+    font: str
     theme: gui.Theme
     action: state.Action
     environment: state.Environment
@@ -50,6 +51,7 @@ if __name__ == "__main__":
     pg.display.set_caption("pinboard")    
     data_program = DataProgram(
         width=1280, height=720,
+        font="Arial",
         theme=gui.DEFAULT_THEME,
         action=state.Action.IDLE,
         environment=state.Environment.GLOBAL,

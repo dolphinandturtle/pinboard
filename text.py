@@ -6,7 +6,7 @@ from bisect import bisect_left
 
 
 class HandlerText:
-    def  __init__(self, data_program, camera=None, cards_xi=None, cards_xf=None, cards_yi=None, cards_yf=None, cards_buffer=None, buffer_metrics=None, caches_render=None):
+    def  __init__(self, data_program, camera=None, cards_xi=None, cards_xf=None, cards_yi=None, cards_yf=None, cards_buffer=None, buffer_metrics=None, caches_render=None, font=None):
         self.cam = Camera() if camera is None else camera
         self.cards_xi = [] if cards_xi is None else cards_xi
         self.cards_xf = [] if cards_xf is None else cards_xf
@@ -15,7 +15,7 @@ class HandlerText:
         self.cards_buffer = [] if cards_buffer is None else cards_buffer
         self.buffer_metrics = [] if buffer_metrics is None else buffer_metrics
         self.caches_render = [] if caches_render is None else caches_render
-        self.font = pg.font.SysFont("Arial", 16)
+        self.font = pg.font.SysFont(data_program.font, 16) if font is None else font
         self.data_program = data_program
         self.mount = 0
 
@@ -31,7 +31,9 @@ class HandlerText:
                 self.cards_buffer[self.mount] += event.unicode
                 self.buffer_metrics[self.mount].append(self.font.size(self.cards_buffer[self.mount])[0])
             text = self.wrap_text(self.cards_buffer[self.mount], 200, 100, self.buffer_metrics[self.mount])
-            self.caches_render[self.mount] = gui.draw_text(text, self.font, self.data_program.theme.text_card, 200, 100)
+            surface = self.caches_render[self.mount]
+            surface.fill(self.data_program.theme.card_isolated)
+            gui.draw_text(surface, text, self.font, self.data_program.theme.text_card)
 
     def draw(self, screen):
         for xi, xf, yi, yf, surf in zip(self.cards_xi, self.cards_xf, self.cards_yi, self.cards_yf, self.caches_render):

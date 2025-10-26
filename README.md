@@ -8,4 +8,5 @@ let's you create *notes* and link between them with *threads*.
 3. A toolbar was added for ease of debuging and state tracking.
 4. Card objects can now be *displaced* and *removed*.
 5. Arrows are now *directed*.
-6. The global state is no more persistent (temporary).
+6. Font has consistent size and pretty margins.
+7. Cards are color coded dynamically from relation data.

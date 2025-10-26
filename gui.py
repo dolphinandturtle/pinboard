@@ -24,42 +24,13 @@ DEFAULT_THEME = Theme(
     arrow_uni="#dddddd",
     arrow_bi="#ffffff",
     card_isolated="#ffffff",
-    card_axiom="#ffffff",
-    card_theorem="#ffffff",
-    card_thesis="#ffffff",
+    card_axiom="#ffbbbb",
+    card_theorem="#ffffaa",
+    card_thesis="#aaff33",
     card_focused="#ffffaa",
     text_card="#000000",
     text_widget="#777799"
 )
-
-
-class Camera:
-    def __init__(self, x=0, y=0, z=1):
-        self.x = x
-        self.y = y
-        self.z = z
-
-    def move(self, dx, dy):
-        self.x += dx * self.z
-        self.y += dy * self.z
-
-    def zoom(self, x_rel, y_rel, fac):
-        self.x -= x_rel * fac
-        self.y -= y_rel * fac
-        self.z += fac
-
-    def x_rel(self, x_abs):
-        return round((x_abs - self.x) / self.z)
-
-    def x_abs(self, x_rel):
-        return round(self.x + (x_rel * self.z))
-
-    def y_rel(self, y_abs):
-        return round((y_abs - self.y) / self.z)
-
-    def y_abs(self, y_rel):
-        return round(self.y + (y_rel * self.z))
-
 
 class ButtonsRect:
     def __init__(self, xi=None, yi=None, xf=None, yf=None, id=None, idmap=None):
@@ -76,14 +47,13 @@ class ButtonsRect:
 
 
 class ButtonsLine:
-    def __init__(self, id_max=0, idmap=None, id=None, xi=None, yi=None, xf=None, yf=None):
-        self.id_max = id_max
-        self.idmap = {} if idmap is None else idmap
-        self.id = [] if id is None else id
+    def __init__(self, xi=None, yi=None, xf=None, yf=None, id=None, idmap=None):
         self.xi = [] if xi is None else xi
         self.yi = [] if yi is None else yi
         self.xf = [] if xf is None else xf
         self.yf = [] if yf is None else yf
+        self.id = [] if id is None else id
+        self.idmap = {} if idmap is None else idmap
 
     def probe(self, x, y) -> int:
         WIDTH = 10
@@ -102,10 +72,10 @@ class ButtonsLine:
         return out
 
 
-def draw_text(surface, text, font, color):
+def draw_text(surface, x, y, text, font, color):
     for dy, line in enumerate(text.split('\n')):
         surface.blit(font.render(line, True, color), (
-            0, font.get_height() * dy
+            x, y + font.get_height() * dy
         ))
     
 def draw_arrow(screen, color, pos_i, pos_f, width):

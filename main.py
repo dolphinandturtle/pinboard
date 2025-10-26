@@ -6,6 +6,10 @@ from world import HandlerWorld
 import gui
 import state
 import pickle
+from sys import argv
+
+
+path_save = argv[1]
 
 
 @dataclass(slots=True, order=True)
@@ -34,8 +38,8 @@ class Pinboard:
                 match self.data_program.action:
                     case state.Action.IDLE:
                         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                            #with open("saves/global.save", "wb") as file:
-                            #    pickle.dump(self.world.dump(), file)
+                            with open(path_save, "wb") as file:
+                                pickle.dump(asdict(self.world.wrld), file)
                             pg.quit()
                             exit()
             self.screen.fill(self.data_program.theme.background)
@@ -46,6 +50,7 @@ class Pinboard:
 
 
 if __name__ == "__main__":
+    from entities import PersistentWorld
     pg.init()
     pg.font.init()
     pg.display.set_caption("pinboard")    
@@ -54,11 +59,11 @@ if __name__ == "__main__":
         font="Arial",
         theme=gui.DEFAULT_THEME,
         action=state.Action.IDLE,
-        environment=state.Environment.GLOBAL,
+        environment=state.Environment.GLOBAL
     )
-    #try:
-    #    with open("saves/global.save", "rb") as file:
-    #        prog = Pinboard(data_program, HandlerWorld(data_program, *pickle.load(file)))
-    #except FileNotFoundError:
-    prog = Pinboard(data_program, HandlerWorld(data_program))
+    try:
+        with open(path_save, "rb") as file:
+            prog = Pinboard(data_program, HandlerWorld(data_program, PersistentWorld(**pickle.load(file))))
+    except FileNotFoundError:
+        prog = Pinboard(data_program, HandlerWorld(data_program))
     prog.run()

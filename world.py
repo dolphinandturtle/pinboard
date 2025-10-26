@@ -2,101 +2,14 @@ from dataclasses import dataclass, field
 import pygame as pg
 import gui
 import state
+from entities import Camera, AuxiliaryWorld, PersistentWorld
 from text import HandlerText
-
-
-class AuxiliaryWorld:
-    def __init__(self, wrld):
-        count = len(wrld.cards_id)
-        self.cards_idmap = {id: i for i, id in enumerate(wrld.cards_buffer)}
-        self.buffer_metrics = [list() for _ in range(count)]
-        self.caches_render = [pg.Surface((200, 100), pg.SRCALPHA) for _ in range(count)]
-
-
-@dataclass(slots=True, frozen=True)
-class PersistentWorld:
-    # Position
-    camera:             gui.Camera = field(default_factory=gui.Camera)   # TODO: Remove camera from PersistentWorld
-    cards_xi:           list[int]  = field(default_factory=list)
-    cards_xf:           list[int]  = field(default_factory=list)
-    cards_yi:           list[int]  = field(default_factory=list)
-    cards_yf:           list[int]  = field(default_factory=list)
-    # Arrows
-    cards_state_enter:  list[list[state.FlowArrow]] = field(default_factory=list)
-    cards_state_local:  list[state.StateCard]       = field(default_factory=list)
-    cards_state_exit:   list[list[state.FlowArrow]] = field(default_factory=list)
-    # Text
-    cards_buffer:       list[str] = field(default_factory=list)
-    # Relations
-    cards_id:           list[int]       = field(default_factory=list)
-    cards_id_enter:     list[list[int]] = field(default_factory=list)
-    cards_id_exit:      list[list[int]] = field(default_factory=list)
-
-    def spawn(self, xi, xf, yi, yf, aux) -> int:
-        id = max(self.cards_id) + 1 if self.cards_id else 0
-        # Position
-        self.cards_xi.append(xi)
-        self.cards_xf.append(xf)
-        self.cards_yi.append(yi)
-        self.cards_yf.append(yf)
-        # State
-        self.cards_state_enter.append(list())
-        self.cards_state_local.append(state.StateCard.ISOLATED)
-        self.cards_state_exit.append(list())
-        # Relations
-        aux.cards_idmap[id] = len(self.cards_id)
-        self.cards_id.append(id)
-        self.cards_id_enter.append(list())
-        self.cards_id_exit.append(list())
-        # Text
-        self.cards_buffer.append(str())
-        aux.buffer_metrics.append(list())
-        # Render
-        aux.caches_render.append(pg.Surface((200, 100), pg.SRCALPHA))
-        return id
-
-    def kill(self, id, aux):
-        idel = aux.cards_idmap[id]
-        # Remove position
-        del self.cards_xi[idel]
-        del self.cards_xf[idel]
-        del self.cards_yi[idel]
-        del self.cards_yf[idel]
-        # Remove states
-        del self.cards_state_enter[idel]
-        del self.cards_state_local[idel]
-        del self.cards_state_exit[idel]
-        # Remove buffer
-        del self.cards_buffer[idel]
-        del aux.buffer_metrics[idel]
-        # Remove relations globally
-        for id_parent in self.cards_id_exit[idel]:
-            self.cards_id_enter[aux.cards_idmap[id_parent]].remove(id)
-        for id_child in self.cards_id_enter[idel]:
-            self.cards_id_exit[aux.cards_idmap[id_child]].remove(id)
-        # Remove relations locally
-        del self.cards_id[idel]
-        del self.cards_id_exit[idel]
-        del self.cards_id_enter[idel]
-        # Remove render caches
-        del aux.caches_render[idel]
-        # Update idmap
-        '''Every index gt. than that of the deleted id's
-        is going to move back by 1.'''
-        inf = aux.cards_idmap[id]
-        del aux.cards_idmap[id]
-        for id in self.cards_id[inf:]:
-            aux.cards_idmap[id] -= 1
-
-    def link(self, id_parent, id_child, aux):
-        self.cards_id_exit[aux.cards_idmap[id_parent]].append(id_child)
-        self.cards_id_enter[aux.cards_idmap[id_child]].append(id_parent)
 
 
 class HandlerWorld:
     def __init__(self, data_program, wrld=None):
         self.wrld = PersistentWorld() if wrld is None else wrld
-        self.aux = AuxiliaryWorld(self.wrld)
+        self.aux = AuxiliaryWorld(self.wrld, data_program)
         # Auxiliary
         self.xi = 0
         self.yi = 0
@@ -180,7 +93,7 @@ class HandlerWorld:
                         self.wrld.camera.y_abs(yf),
                         self.aux
                     )
-                    self.aux.caches_render[self.aux.cards_idmap[id_spawn]].fill(self.data_program.theme.card_isolated)
+                    self.aux.caches_render_card[self.aux.cards_idmap[id_spawn]].fill(self.data_program.theme.card_isolated)
                     self.stage = 0
 
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1 and self.stage == 0:
@@ -210,16 +123,32 @@ class HandlerWorld:
                 if event.type == pg.MOUSEMOTION and self.stage == 1:
                     dx, dy = event.rel
                     index = self.aux.cards_idmap[self.id_base]
-                    self.wrld.cards_xf[index] += dx * self.wrld.camera.z
-                    self.wrld.cards_xi[index] += dx * self.wrld.camera.z
-                    self.wrld.cards_yf[index] += dy * self.wrld.camera.z
-                    self.wrld.cards_yi[index] += dy * self.wrld.camera.z
+                    self.wrld.cards_xf[index] += round(dx * self.wrld.camera.z)
+                    self.wrld.cards_xi[index] += round(dx * self.wrld.camera.z)
+                    self.wrld.cards_yf[index] += round(dy * self.wrld.camera.z)
+                    self.wrld.cards_yi[index] += round(dy * self.wrld.camera.z)
                 elif event.type == pg.MOUSEBUTTONUP and event.button == 1 and self.stage == 1:
                     self.stage = 0
 
     def draw(self, screen):
         self.draw_arrows(screen)
+        self.draw_cards(screen)
         self.hnd_txt.draw(screen)
+
+    def draw_cards(self, screen):
+        for xi, xf, yi, yf, surf in zip(self.wrld.cards_xi, self.wrld.cards_xf, self.wrld.cards_yi, self.wrld.cards_yf, self.aux.caches_render_card):
+            xi_rel = self.wrld.camera.x_rel(xi)
+            xf_rel = self.wrld.camera.x_rel(xf)
+            yi_rel = self.wrld.camera.y_rel(yi)
+            yf_rel = self.wrld.camera.y_rel(yf)
+            if (not (0 <= xi_rel <= xf_rel <= self.data_program.width) and
+                not (0 <= yi_rel <= yf_rel <= self.data_program.height)):
+                continue
+            scaled = pg.transform.scale(surf, (
+                self.wrld.camera.len_rel(xf - xi),
+                self.wrld.camera.len_rel(yf - yi)
+            ))
+            screen.blit(scaled, (xi_rel, yi_rel))
 
     def draw_arrows(self, screen):
         for xi, xf, yi, yf, id, ids_exit in zip(self.wrld.cards_xi, self.wrld.cards_xf, self.wrld.cards_yi, self.wrld.cards_yf, self.wrld.cards_id, self.wrld.cards_id_exit):

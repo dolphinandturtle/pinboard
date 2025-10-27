@@ -45,16 +45,36 @@ class AuxiliaryWorld:
         self.buffer_metrics = [list() for _ in range(count)]
         self.caches_render_card = []
         self.caches_render_text = []
-        for xi, xf, yi, yf in zip(wrld.cards_xi, wrld.cards_xf, wrld.cards_yi, wrld.cards_yf):
+
+        self.arrows_xi = []
+        self.arrows_yi = []
+        self.arrows_exit_xf = []
+        self.arrows_exit_yf = []
+        self.arrows_idmap = {}
+
+        for xi, xf, yi, yf, ids_exit in zip(
+                wrld.cards_xi, wrld.cards_xf, wrld.cards_yi,wrld.cards_yf,
+                wrld.cards_id_exit
+        ):
             size = (xf - xi, yf - yi)
             self.caches_render_card.append(pg.Surface(size, pg.SRCALPHA))
             self.caches_render_text.append(pg.Surface(size, pg.SRCALPHA))
+            self.arrows_xi.append((xf + xi) / 2)
+            self.arrows_yi.append((yf + yi) / 2)
+            xf, yf = list(), list()
+            for id_exit in ids_exit:
+                i = self.cards_idmap[id_exit]
+                xf.append((wrld.cards_xf[i] + wrld.cards_xi[i]) / 2)
+                yf.append((wrld.cards_yf[i] + wrld.cards_yi[i]) / 2)
+            self.arrows_exit_xf.append(xf)
+            self.arrows_exit_yf.append(yf)
 
 
 @dataclass(slots=True, frozen=True)
 class PersistentWorld:
     # Position
-    camera:             Camera = field(default_factory=Camera)   # TODO: Remove camera from PersistentWorld
+    # TODO: Remove camera from PersistentWorld
+    camera:             Camera = field(default_factory=Camera)
     cards_xi:           list[int]  = field(default_factory=list)
     cards_xf:           list[int]  = field(default_factory=list)
     cards_yi:           list[int]  = field(default_factory=list)
@@ -77,21 +97,24 @@ class PersistentWorld:
         return self.cards_yf[i] - self.cards_yi[i]
 
     def spawn(self, xi, xf, yi, yf, aux) -> int:
-        id = max(self.cards_id) + 1 if self.cards_id else 0
         # Position
         self.cards_xi.append(xi)
         self.cards_xf.append(xf)
         self.cards_yi.append(yi)
         self.cards_yf.append(yf)
+        aux.arrows_xi.append((xf + xi) / 2)
+        aux.arrows_yi.append((yf + yi) / 2)
         # State
         self.cards_state_enter.append(list())
         self.cards_state_local.append(state.StateCard.ISOLATED)
         self.cards_state_exit.append(list())
         # Relations
-        aux.cards_idmap[id] = len(self.cards_id)
-        self.cards_id.append(id)
+        id = max(self.cards_id) + 1 if self.cards_id else 0
+        self.add_id(id, self.cards_id, aux.cards_idmap)
         self.cards_id_enter.append(list())
         self.cards_id_exit.append(list())
+        aux.arrows_exit_xf.append(list())
+        aux.arrows_exit_yf.append(list())
         # Text
         self.cards_buffer.append(str())
         aux.buffer_metrics.append(list())
@@ -108,6 +131,8 @@ class PersistentWorld:
         del self.cards_xf[idel]
         del self.cards_yi[idel]
         del self.cards_yf[idel]
+        del aux.arrows_xi[idel]
+        del aux.arrows_yi[idel]
         # Remove states
         del self.cards_state_enter[idel]
         del self.cards_state_local[idel]
@@ -126,32 +151,34 @@ class PersistentWorld:
             ))
         for id_parent in self.cards_id_enter[idel]:
             iparent = aux.cards_idmap[id_parent]
-            self.cards_id_exit[iparent].remove(id)
+            i = self.cards_id_exit[iparent].index(id)
+            del self.cards_id_exit[iparent][i]
+            del aux.arrows_exit_xf[iparent][i]
+            del aux.arrows_exit_yf[iparent][i]
             aux.caches_render_card[iparent].fill(self.get_color(
                 count_arrows_in=len(self.cards_id_enter[iparent]),
                 count_arrows_out=len(self.cards_id_exit[iparent]),
                 aux=aux
             ))
+
         # Remove relations locally
-        del self.cards_id[idel]
         del self.cards_id_exit[idel]
         del self.cards_id_enter[idel]
+        del aux.arrows_exit_xf[idel]
+        del aux.arrows_exit_yf[idel]
         # Remove render caches
         del aux.caches_render_card[idel]
         del aux.caches_render_text[idel]
-        # Update idmap
-        '''Every index gt. than that of the deleted id's
-        is going to move back by 1.'''
-        inf = aux.cards_idmap[id]
-        del aux.cards_idmap[id]
-        for id in self.cards_id[inf:]:
-            aux.cards_idmap[id] -= 1
+        # Update cards_idmap
+        self.del_id(id, self.cards_id, aux.cards_idmap)
 
     def link(self, id_parent, id_child, aux):
         iparent = aux.cards_idmap[id_parent]
         ichild = aux.cards_idmap[id_child]
         self.cards_id_exit[iparent].append(id_child)
         self.cards_id_enter[ichild].append(id_parent)
+        aux.arrows_exit_xf[iparent].append((self.cards_xf[ichild] + self.cards_xi[ichild]) / 2)
+        aux.arrows_exit_yf[iparent].append((self.cards_yf[ichild] + self.cards_yi[ichild]) / 2)
         aux.caches_render_card[iparent].fill(self.get_color(
             count_arrows_in=len(self.cards_id_enter[iparent]),
             count_arrows_out=len(self.cards_id_exit[iparent]),
@@ -162,6 +189,30 @@ class PersistentWorld:
             count_arrows_out=len(self.cards_id_exit[ichild]),
             aux=aux
         ))
+
+    def unlink(self, id_parent, id_child, aux):
+        ichild = self.cards_idmap[id_child]
+        iparent = self.cards_idmap[id_parent]
+        # Positions
+        del aux.arrows_exit_xf[iparent]
+        del aux.arrows_exit_yf[iparent]
+        # Relations
+        self.cards_id_exit[ichild].remove(id_parent)
+        self.cards_id_enter[iparent].remove(id_child)
+
+    @staticmethod
+    def add_id(id, /, list_id, idict_id):
+        idict_id[id] = len(list_id)
+        list_id.append(id)
+
+    @staticmethod
+    def del_id(id, /, list_id, idict_id):
+        '''Every index gt. than that of the deleted id's
+        is going to move back by 1.'''
+        inf = idict_id.pop(id)
+        del list_id[inf]
+        for id in list_id[inf:]:
+            idict_id[id] -= 1
 
     @staticmethod
     def get_color(count_arrows_in, count_arrows_out, aux):

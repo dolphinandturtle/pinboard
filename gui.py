@@ -46,32 +46,6 @@ class ButtonsRect:
         return [id for id in ids_intersect_x if self.yi[self.idmap[id]] < y < self.yf[self.idmap[id]]]
 
 
-class ButtonsLine:
-    def __init__(self, xi=None, yi=None, xf=None, yf=None, id=None, idmap=None):
-        self.xi = [] if xi is None else xi
-        self.yi = [] if yi is None else yi
-        self.xf = [] if xf is None else xf
-        self.yf = [] if yf is None else yf
-        self.id = [] if id is None else id
-        self.idmap = {} if idmap is None else idmap
-
-    def probe(self, x, y) -> int:
-        WIDTH = 10
-        ids_intersect_x = [id for id, xi, xf in zip(self.id, self.xi, self.xf) if xi < x < xf]
-        m = (yf - yi) / (xf - xi)
-        m * (x - xi) + yi - WIDTH < y < m * (x - xi) + yi + WIDTH
-        out = []
-        for id in ids_intersect_x:
-            i = self.idmap[id]
-            xi, xf = self.xi[i], self.xf[i]
-            yi, yf = self.yi[i], self.yf[i]
-            m = (yf - yi) / (xf - xi)
-            ey = m * (x - xi) + yi
-            if ey - WIDTH <= y <= ey + WIDTH:
-                out.append(id)
-        return out
-
-
 def draw_text(surface, x, y, text, font, color):
     for dy, line in enumerate(text.split('\n')):
         surface.blit(font.render(line, True, color), (

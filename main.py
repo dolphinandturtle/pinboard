@@ -46,7 +46,6 @@ class Pinboard:
             self.world.draw(self.screen)
             self.toolbar.draw(self.screen)
             pg.display.update()
-            
 
 
 if __name__ == "__main__":

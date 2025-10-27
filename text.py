@@ -49,7 +49,7 @@ class HandlerText:
             gui.draw_text(surface, 0.05 * width_card, 0.05 * height_card, text, self.font, self.data_program.theme.text_card)
 
     def draw(self, screen):
-        for xi, xf, yi, yf, surf in zip(self.core.cards_xi, self.core.cards_xf, self.core.cards_yi, self.core.cards_yf, self.aux.caches_render_text):
+        for xi, xf, yi, yf, surf_card, surf_text in zip(self.core.cards_xi, self.core.cards_xf, self.core.cards_yi, self.core.cards_yf, self.aux.caches_render_card, self.aux.caches_render_text):
             xi_rel = self.core.camera.x_rel(xi)
             xf_rel = self.core.camera.x_rel(xf)
             yi_rel = self.core.camera.y_rel(yi)
@@ -57,11 +57,16 @@ class HandlerText:
             if (not (0 <= xi_rel <= xf_rel <= self.data_program.width) and
                 not (0 <= yi_rel <= yf_rel <= self.data_program.height)):
                 continue
-            scaled = pg.transform.scale(surf, (
+            scaled_card = pg.transform.scale(surf_card, (
                 self.core.camera.len_rel(xf - xi),
                 self.core.camera.len_rel(yf - yi)
             ))
-            screen.blit(scaled, (xi_rel, yi_rel))
+            screen.blit(scaled_card, (xi_rel, yi_rel))
+            scaled_text = pg.transform.scale(surf_text, (
+                self.core.camera.len_rel(xf - xi),
+                self.core.camera.len_rel(yf - yi)
+            ))
+            screen.blit(scaled_text, (xi_rel, yi_rel))
 
     @staticmethod
     def wrap_text(text, width_max, height_max, width_list) -> str:

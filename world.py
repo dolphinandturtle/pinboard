@@ -123,9 +123,9 @@ class HandlerWorld:
                     self.wrld.cards_yf[index] += round(dy * self.wrld.camera.z)
                     self.aux.arrows_xi[index] += round(dx * self.wrld.camera.z)
                     self.aux.arrows_yi[index] += round(dy * self.wrld.camera.z)
-                    for id_parent in self.wrld.cards_id_enter[self.id_base]:
+                    for id_parent in self.wrld.cards_id_enter[self.aux.cards_idmap[self.id_base]]:
                         iparent = self.aux.cards_idmap[id_parent]
-                        for i, id in enumerate(self.wrld.cards_id_exit[id_parent]):
+                        for i, id in enumerate(self.wrld.cards_id_exit[iparent]):
                             if id == self.id_base:
                                 self.aux.arrows_exit_xf[iparent][i] += round(dx * self.wrld.camera.z)
                                 self.aux.arrows_exit_yf[iparent][i] += round(dy * self.wrld.camera.z)

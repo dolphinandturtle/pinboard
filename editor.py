@@ -4,16 +4,58 @@ import pygame as pg
 
 
 @dataclass(slots=True, frozen=True)
-class CoBuffer:
-    buffer: list
-    encoder: Callable
+class Follower: # Crew
+    buffer: list # Buffer
+    encode: Callable # Job
+
+
+@dataclass(slots=True, frozen=True)
+class BufferRigged:
+    pilot:      list
+    followers:  list[Follower]
+
+    @classmethod
+    def init(cls, iterable=(), *args):
+        pilot = list(iterable)
+        for fol in args:
+            fol.buffer = list(map(fol.encode, pilot))
+        return cls(pilot, args)
+
+    def __iter__(self):
+        return self.pilot.__iter__()
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self.pilot.__getitem__(key)
+        elif isinstance(key, slice):
+            return BufferRigged(
+                self.pilot.__getitem__(key),
+                [fol.__getitem__(key) for fol in self.followers]
+            )
+        else:
+            raise IndexError
+
+    def __setitem__(self, key, value):
+        for fol in self.followers:
+            fol.buffer.__setitem__(key, fol.encode(value))
+        return self.pilot.__setitem__(key, value)
+
+    def __delitem__(self, key):
+        for fol in self.followers:
+            fol.buffer.__delitem__(key)
+        self.pilot.__delitem__(key)
+
+    def __add__(self, x, /):
+        return BufferRigged(
+            self.pilot.__add__(x.pilot),
+            [fol.__add__(xfol) for fol, xfol in zip(self.followers, x.followers)]
+        )
 
 
 class Editor:
-    def __init__(self, bindings, *cobuffers):
+    def __init__(self, bindings, followers):
         self.bindings = bindings
-        self.cobuffers = cobuffers
-        self.buffer = ""
+        self.buffer = BufferRigged.init([], *followers)
         self.cur = 0
 
     def listen(self, mod, key, unicode):
@@ -23,7 +65,7 @@ class Editor:
             self.insert(unicode)
 
     def get_buffer(self):
-        return buffer
+        return ''.join(buffer)
 
     def get_cursor(self):
         return cur
@@ -42,13 +84,9 @@ class Editor:
 
     def insert(self, new):
         self.buffer = self.buffer[:self.cur] + new + self.buffer[self.cur:]
-        for cobuf in self.cobuffers:
-            cobuf.buffer = cobuf.buffer[:self.cur] + list(map(cobuf.encoder, new)) + cobuf.buffer[self.cur:]
 
     def backspace(self):
         self.buffer = self.buffer[:self.cur-1] + self.buffer[self.cur:]
-        for cobuf in self.cobuffers:
-            cobuf.buffer = cobuf.buffer[:cobuf.cur-1] + cobuf.buffer[cobuf.cur:]
 
 
 BINDINGS_EMACS = {

@@ -28,9 +28,11 @@ class Pinboard:
         self.screen = pg.display.set_mode((data_program.width, data_program.height))
         self.world = world
         self.toolbar = Toolbar(data_program)
+        self.clock = pg.time.Clock()
 
     def run(self):
         while True:
+            self.clock.tick(30)
             for event in pg.event.get():
                 self.toolbar.listen(event)
                 if not self.toolbar.activation:
@@ -52,7 +54,7 @@ if __name__ == "__main__":
     from entities import PersistentWorld
     pg.init()
     pg.font.init()
-    pg.display.set_caption("pinboard")    
+    pg.display.set_caption("pinboard")
     data_program = DataProgram(
         width=1280, height=720,
         font="Arial",

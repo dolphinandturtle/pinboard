@@ -31,7 +31,7 @@ class HandlerWorld:
         self.cursor_rect = cursors.CursorRect()
         self.cursor_arrow = cursors.CursorArrow()
         self.stage = 0
-        self.id_base = 0
+        self.id_base = []
 
     def listen(self, event):
         match self.data_program.environment:
@@ -78,6 +78,12 @@ class HandlerWorld:
 
     def listen_cards(self, event):
         match self.data_program.action:
+            case state.Action.IDLE:
+                if self.cursor_rect.listen(event):
+                    rect = self.cursor_rect.pull()
+                    ids_intersect_x = [id for id, xi, xf in zip(self.wrld.cards_id, self.wrld.cards_xi, self.wrld.cards_xf) if self.wrld.camera.x_abs(rect.xi) < xi < xf < self.wrld.camera.x_abs(rect.xf)]
+                    self.id_base = [id for id in ids_intersect_x if self.wrld.camera.y_abs(rect.yi) < self.wrld.cards_yi[self.aux.cards_idmap[id]] < self.wrld.cards_yf[self.aux.cards_idmap[id]] < self.wrld.camera.y_abs(rect.yf)]
+
             case state.Action.CREATE:
                 if self.cursor_rect.listen(event):
                     rect = self.cursor_rect.pull()
@@ -106,7 +112,7 @@ class HandlerWorld:
                 case state.Action.EDIT:
                     self.hnd_txt.set_mount(self.aux.cards_idmap[ids[0]])
                 case state.Action.MOVE:
-                    self.id_base = ids[-1]
+                    #self.id_base = [ids[-1]]
                     self.stage = 1
 
         match self.data_program.action:
@@ -116,19 +122,21 @@ class HandlerWorld:
             case state.Action.MOVE:
                 if event.type == pg.MOUSEMOTION and self.stage == 1:
                     dx, dy = event.rel
-                    index = self.aux.cards_idmap[self.id_base]
-                    self.wrld.cards_xi[index] += round(dx * self.wrld.camera.z)
-                    self.wrld.cards_xf[index] += round(dx * self.wrld.camera.z)
-                    self.wrld.cards_yi[index] += round(dy * self.wrld.camera.z)
-                    self.wrld.cards_yf[index] += round(dy * self.wrld.camera.z)
-                    self.aux.arrows_xi[index] += round(dx * self.wrld.camera.z)
-                    self.aux.arrows_yi[index] += round(dy * self.wrld.camera.z)
-                    for id_parent in self.wrld.cards_id_enter[self.aux.cards_idmap[self.id_base]]:
-                        iparent = self.aux.cards_idmap[id_parent]
-                        for i, id in enumerate(self.wrld.cards_id_exit[iparent]):
-                            if id == self.id_base:
-                                self.aux.arrows_exit_xf[iparent][i] += round(dx * self.wrld.camera.z)
-                                self.aux.arrows_exit_yf[iparent][i] += round(dy * self.wrld.camera.z)
+                    #for index in map(self.aux.cards_idmap.__getitem__, self.id_base):
+                    for id_child in self.id_base:
+                        index = self.aux.cards_idmap[id_child]
+                        self.wrld.cards_xi[index] += round(dx * self.wrld.camera.z)
+                        self.wrld.cards_xf[index] += round(dx * self.wrld.camera.z)
+                        self.wrld.cards_yi[index] += round(dy * self.wrld.camera.z)
+                        self.wrld.cards_yf[index] += round(dy * self.wrld.camera.z)
+                        self.aux.arrows_xi[index] += round(dx * self.wrld.camera.z)
+                        self.aux.arrows_yi[index] += round(dy * self.wrld.camera.z)
+                        for id_parent in self.wrld.cards_id_enter[index]:
+                            iparent = self.aux.cards_idmap[id_parent]
+                            for i, id in enumerate(self.wrld.cards_id_exit[iparent]):
+                                if id == id_child:
+                                    self.aux.arrows_exit_xf[iparent][i] += round(dx * self.wrld.camera.z)
+                                    self.aux.arrows_exit_yf[iparent][i] += round(dy * self.wrld.camera.z)
 
                 elif event.type == pg.MOUSEBUTTONUP and event.button == 1 and self.stage == 1:
                     self.stage = 0

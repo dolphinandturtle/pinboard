@@ -17,8 +17,7 @@ class HandlerText:
             surf_card.fill(core.get_color(len(id_enter), len(id_exit), aux))
             for i in range(len(buffer)):
                 metrics.append(self.font.size(buffer[:i+1])[0])
-            width = xf - xi
-            height = yf - yi
+            width, height = (xf - xi), (yf - yi)
             text = self.wrap_text(buffer, width * 0.90, height * 0.90, metrics)
             gui.draw_text(surf_text, width * 0.05, height * 0.05, text, self.font, data_program.theme.text_card)
 
